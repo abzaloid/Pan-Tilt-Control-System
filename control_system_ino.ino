@@ -30,6 +30,12 @@
 
 Dynamixel Dxl(DXL_BUS_SERIAL1);
 
+/* Trapezoidal pattern */
+word my_time = 0;
+#define RAMP_TIME 5
+#define CONSTANT_TIME 5
+#define STEP_SPEED 10
+
 void setup() {
 
 
@@ -111,4 +117,16 @@ word convert(float angle, byte id) {
   }  
 }
 
-
+/* S-curve speed control */
+void scurve () {
+  /* trapezoidal pattern */
+  
+  word speed;
+  if (my_time <= RAMP_TIME)
+    speed += STEP_SPEED;
+  else if (my_time > RAMP_TIME + CONSTANT_TIME) 
+    speed -= STEP_SPEED;
+  
+  /* Increase time which has period of the trapezoid length */
+  my_time = (my_time + 1) % (2 * RAMP_TIME + CONSTANT_TIME);
+}
