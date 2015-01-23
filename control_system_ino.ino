@@ -36,6 +36,9 @@ word my_time = 0;
 #define CONSTANT_TIME 5
 #define STEP_SPEED 10
 
+/* Used for motor lock */
+byte motor_lock = 0;
+
 void setup() {
 
 
@@ -129,4 +132,11 @@ void scurve () {
   
   /* Increase time which has period of the trapezoid length */
   my_time = (my_time + 1) % (2 * RAMP_TIME + CONSTANT_TIME);
+}
+
+
+
+/* Check if motors positions are well */
+byte check_position() {
+  // TODO
 }
