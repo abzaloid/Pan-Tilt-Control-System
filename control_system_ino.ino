@@ -101,57 +101,103 @@ void usbInterrupt(byte* buffer, byte nCount){
   SerialUSB.println("");
 }
 
+#define EPS 1e-4
+void gauss(float a[][4], float res[]) {
+  int n = 3;
+  int m = 3;
+  int where[3] = {-1, -1, -1};
+  for (int col = 0, row = 0; col < m && row < n; col++) {
+    int sel = row;
+    for (int i = row; i < n; i++)
+      if (abs(a[i][col]) > abs(a[sel][col]))
+        sel = i;
+      if (abs(a[sel][col]) < EPS)
+        continue;
+     for (int i = col; i <= m; i++) {
+       float temp = a[sel][i];
+       a[sel][i] = a[row][i];
+       a[row][i] = temp;
+     }
+     where[col] = row;
+    for (int i = 0; i < n; i++)
+      if (i != row) {
+        float c = a[i][col] / a[row][col];
+        for (int j = col; j <= m; j++)
+          a[i][j] -= a[row][j] * c;
+      }
+  }
+  for (int i = 0; i < m; i++)
+    if (where[i] != -1)
+      res[i + 1] = a[where[i]][m] / a[where[i]][i];
+}
+
+float last_x = 0, last_y = 0;
+int is_move = 1;
+
+#define MAX_TIME 1000
+#define MIN_TIME 50
+
+#define SAMPLE_TIME 10
+
 void loop() {  
     
-  float theta;  
-  
-  toggleLED();
-  //  x += step_x * 20;
-  //  y += step_y * 20;
-  
-  
-  
-  //  SerialUSB.println(step_x);
- //   SerialUSB.println(step_y);
-    SerialUSB.println("-----------------------------------");
-    delay(2000);
-
-    /* check if high frequency found */
-    //if ((x - last_x) * (x - last_x) + (y - last_y) * (y - last_y) >= THRESHOLD_SQR_LENGTH) {
-      // TODO
-      //continue;
-    //}
     
-    /* check for not exceeding boundaries */
+    toggleLED();
+  
     if (abs(x * 2) >= WIDTH || abs(y * 2) >= HEIGHT) {
-      // TODO
-      //continue;
+     // is_move = 0;
     }
-        
-    float angle_TOP = y * FV_Y / HEIGHT;
-    float angle_BOTTOM = x * FV_X / WIDTH;
-    
-    int pos_BOTTOM = convert(angle_BOTTOM, BOTTOM);
-    int pos_TOP = convert(angle_TOP, TOP);
-    
-    SerialUSB.print("pos_TOP = ");
-    SerialUSB.print(pos_TOP);
-    SerialUSB.print(" pos_BOTTOM = ");
-    SerialUSB.println(pos_BOTTOM);
-    
-    SerialUSB.print("x = ");
-    SerialUSB.print(x);
-    SerialUSB.print(" y = ");
-    SerialUSB.println(y);
-    
-    Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
-    Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
-    
-    Dxl.flushPacket();
   
-    if(!Dxl.getResult()){
-      SerialUSB.println("Comm Fail");
+    if (is_move == 1) {
+      
+      float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0;
+      float t_2 = t * t;
+      float t_3 = t_2 * t;
+      float t_4 = t_3 * t;
+      float t_5 = t_4 * t;
+      float x_a[4], y_a[4];
+      x_a[0] = last_x;
+      y_a[0] = last_y;
+      float ax[3][4] = {
+        {t_3, t_4, t_5, x - x_a[0]},
+        {3*t_2, 4*t_3, 5*t_4, 0.0},
+        {6*t, 8*t_2, 20*t_3, 0.0}
+      };
+      float ay[3][4] = {
+        {t_3, t_4, t_5, y - y_a[0]},
+        {3*t_2, 4*t_3, 5*t_4, 0.0},
+        {6*t, 8*t_2, 20*t_3, 0.0}
+      };
+      gauss(ax, x_a);
+      gauss(ay, y_a);
+      
+      for (float tm = 0.0; tm <= t; tm += SAMPLE_TIME) {
+        float x_t = x_a[0], y_t = y_a[0];
+        float tt = tm*tm*tm;
+        for (int i = 3; i <= 5; i++)
+          x_t += x_a[i - 2] * tt, y_t += y_a[i - 2] * tt, tt *= tm;
+          
+        float angle_TOP = y_t * FV_Y / HEIGHT;
+        float angle_BOTTOM = x_t * FV_X / WIDTH;
+    
+        int pos_BOTTOM = convert(angle_BOTTOM, BOTTOM);
+        int pos_TOP = convert(angle_TOP, TOP);
+    
+        Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
+        Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
+        
+        SerialUSB.println(pos_TOP);
+        SerialUSB.println(pos_BOTTOM);
+        
+        Dxl.flushPacket();
+        if(!Dxl.getResult()){
+          SerialUSB.println("Comm Fail");
+        }  
     }
+   
+      last_x = x;
+      last_y = y;
+   }
 }
 
 int convert(float angle, int id) {
@@ -173,9 +219,3 @@ void scurve () {
   my_time = (my_time + 1) % (2 * RAMP_TIME + CONSTANT_TIME);
 }
 
-
-
-/* Check if motors positions are well */
-int check_position() {
-  // TODO
-}
