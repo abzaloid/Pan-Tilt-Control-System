@@ -7,16 +7,15 @@
 
 /* Control table defines */
 #define GOAL_POSITION 30
-
-
+#define MOVING 46
 
 /* Field of View of Camera's X and Y axes in degrees */
 #define FV_X 45.0
 #define FV_Y 45.0
 
 /* Parameters of camera */
-#define WIDTH  640.0
-#define HEIGHT 480.0
+#define WIDTH  1280.
+#define HEIGHT 800.0
 
 /* ID's for semantic & easy use */
 #define TOP 0
@@ -31,100 +30,140 @@
 Dynamixel Dxl(DXL_BUS_SERIAL1);
 
 /* Trapezoidal pattern */
-word my_time = 0;
+int my_time = 0;
 #define RAMP_TIME 5
 #define CONSTANT_TIME 5
 #define STEP_SPEED 10
 
 /* Used for motor lock */
-byte motor_lock = 0;
+int motor_lock = 0;
 
 void setup() {
 
-
+  SerialUSB.attachInterrupt(usbInterrupt);
+  pinMode(BOARD_LED_PIN, OUTPUT);  //toggleLED_Pin_Out
   // Dynamixel 2.0 Baudrate -> 0: 9600, 1: 57600, 2: 115200, 3: 1Mbps 
   Dxl.begin(3);
   /* jointMode() is to use position mode */
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
   
+  Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
+  delay(1000);
+  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
+  delay(3000);
   
 }
 /* convert computed angle to motor position */
-word convert(float angle, byte id);
+int convert(float angle, int id);
+
+float x = 0, y = 0;
+float step_x = 0, step_y = 0;
+
+void usbInterrupt(byte* buffer, byte nCount){
+  SerialUSB.print("nCount =");
+  SerialUSB.println(nCount);
+  for(unsigned int i=0; i < nCount;i++)  //printf_SerialUSB_Buffer[N]_receive_Data
+    SerialUSB.print((char)buffer[i]);
+    
+//  if ((char)buffer[0] == '8')
+//    step_y += 1;
+//  else
+//  if ((char)buffer[0] == '2')
+//    step_y -= 1;
+//  else
+//  if ((char)buffer[0] == '6')
+//    step_x -= 1;
+//  else
+//  if ((char)buffer[0] == '4')
+//    step_x += 1;
+  
+  if ((char)buffer[0] == '1') {
+    x = -(rand()%6700);
+    y = +(rand()%3300);
+  } else
+  if ((char)buffer[0] == '2') {
+    x = +(rand()%6700);
+    y = +(rand()%3300);
+  } else
+  if ((char)buffer[0] == '3') {
+    x = +(rand()%6700);
+    y = -(rand()%3300);
+  } else
+  if ((char)buffer[0] == '4') {
+    x = -(rand()%6700);
+    y = -(rand()%3300);
+  } else {
+    x = 0;
+    y = 0;
+  }
+  
+  SerialUSB.println("");
+}
 
 void loop() {  
-  
-  /* Test DYNAMIXELS */
-  
-//  //Turn dynamixel ID 1 to position 0  
-//  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 0); 
-//  // Wait for 1 second (1000 milliseconds)
-//  delay(1000);         
-//  //Turn dynamixel ID 1 to position 300
-//  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 300);
-//  // Wait for 1 second (1000 milliseconds)
-//  delay(1000);              
-  
-  /* spiral movement */  
     
   float theta;  
-  float last_x = 0, last_y = 0;
   
-  for (theta = 0.0; ; theta += 0.1) {
-    float r = 0.5 * theta;
-    float x = r * cos(theta), y = r * sin(theta);
-
-
-    /* used for smooth motion */    
-    x = PREVIOUS * last_x + (1 - PREVIOUS) * x;
-    y = PREVIOUS * last_y + (1 - PREVIOUS) * y;
+  toggleLED();
+  //  x += step_x * 20;
+  //  y += step_y * 20;
+  
+  
+  
+  //  SerialUSB.println(step_x);
+ //   SerialUSB.println(step_y);
+    SerialUSB.println("-----------------------------------");
+    delay(2000);
 
     /* check if high frequency found */
-    if ((x - last_x) * (x - last_x) + (y - last_y) * (y - last_y) >= THRESHOLD_SQR_LENGTH) {
+    //if ((x - last_x) * (x - last_x) + (y - last_y) * (y - last_y) >= THRESHOLD_SQR_LENGTH) {
       // TODO
-      continue;
-    }
+      //continue;
+    //}
     
     /* check for not exceeding boundaries */
     if (abs(x * 2) >= WIDTH || abs(y * 2) >= HEIGHT) {
       // TODO
-      break;
+      //continue;
     }
         
-    float angle_TOP = y * FV_y / HEIGHT;
-    float angle_BOTTOM = x * FV_x / WIDTH;
+    float angle_TOP = y * FV_Y / HEIGHT;
+    float angle_BOTTOM = x * FV_X / WIDTH;
     
-    Dxl.writeWord(ID_TOP, GOAL_POSITION, convert(angle_TOP, TOP));    
-    delay(300);
-    Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, convert(angle_BOTTOM, BOTTOM));
-    delay(300);
+    int pos_BOTTOM = convert(angle_BOTTOM, BOTTOM);
+    int pos_TOP = convert(angle_TOP, TOP);
     
-    last_x = x, last_y = y;
+    SerialUSB.print("pos_TOP = ");
+    SerialUSB.print(pos_TOP);
+    SerialUSB.print(" pos_BOTTOM = ");
+    SerialUSB.println(pos_BOTTOM);
     
-  }  
+    SerialUSB.print("x = ");
+    SerialUSB.print(x);
+    SerialUSB.print(" y = ");
+    SerialUSB.println(y);
+    
+    Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
+    Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
+    
+    Dxl.flushPacket();
   
+    if(!Dxl.getResult()){
+      SerialUSB.println("Comm Fail");
+    }
 }
 
-word convert(float angle, byte id) {
-  word pos = round(angle * 1024.0 / 360.0);    
-  if (id == TOP) {
-    if (pos < 0) {
-      // TODO      
-    }
-  } else 
-  if (id == BOTTOM) {
-    if (pos < 0) {
-      // TODO
-    }
-  }  
+int convert(float angle, int id) {
+  int pos = 2048 + round((angle / 360.0) * 1024);    
+  return pos;  
 }
 
 /* S-curve speed control */
 void scurve () {
   /* trapezoidal pattern */
   
-  word speed;
+  int speed;
   if (my_time <= RAMP_TIME)
     speed += STEP_SPEED;
   else if (my_time > RAMP_TIME + CONSTANT_TIME) 
@@ -137,6 +176,6 @@ void scurve () {
 
 
 /* Check if motors positions are well */
-byte check_position() {
+int check_position() {
   // TODO
 }
