@@ -77,8 +77,8 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
         
-       // SerialUSB.println(pos_TOP);
-       // SerialUSB.println(pos_BOTTOM);
+        SerialUSB.println(pos_TOP);
+        SerialUSB.println(pos_BOTTOM);
         
         Dxl.flushPacket();
         if(!Dxl.getResult()){
@@ -96,7 +96,7 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
 #define BOTTOM_BOUNDARY -3500
 
 #define MIN_FREE_TIME 2500
-#define MAX_FREE_TIME 10000
+#define MAX_FREE_TIME 8000
 #define RANGE_X_INTERVAL 7000
 #define RANGE_Y_INTERVAL 500
 #define RANGE_DUR_TIME 2000
@@ -199,11 +199,19 @@ void loop() {
              step_y = getNormalRand(0, RANGE_Y_INTERVAL);
              if (x + step_x >= LEFT_BOUNDARY && x + step_x <= RIGHT_BOUNDARY 
                  && y + step_y >= BOTTOM_BOUNDARY && y + step_y <= TOP_BOUNDARY) {
-                    break;
+                   // for some reason doesn't work!
+                   //break;
                  }
-            SerialUSB.println("DAMN");
-            SerialUSB.println(x + step_x);
-            SerialUSB.println(y + step_y);
+              float angle_TOP = (y + step_y) * FV_Y / HEIGHT;
+              float angle_BOTTOM = (x + step_x) * FV_X / WIDTH;
+              int pos_BOTTOM = convert(angle_BOTTOM);
+              int pos_TOP = convert(angle_TOP);
+              if (abs(pos_BOTTOM - 2048) < 512 && abs(pos_TOP - 2048) < 512)
+                break;              
+                 
+              SerialUSB.println("-----------DAMN------------");
+              SerialUSB.println(x + step_x);
+              SerialUSB.println(y + step_y);
            } while (1);
             x += step_x;
             y += step_y;
