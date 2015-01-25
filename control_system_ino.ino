@@ -1,5 +1,6 @@
 #include "definitions.h"
 #include <stdlib.h>
+#include <math.h>
 
 /* Dynamixel Initialization */
 Dynamixel Dxl(DXL_BUS_SERIAL1);
@@ -89,44 +90,24 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    }
 }
 
+#define LEFT_BOUNDARY -6000
+#define RIGHT_BOUNDARY 6000
+#define TOP_BOUNDARY 1500
+#define BOTTOM_BOUNDARY -3500
+
 #define MIN_FREE_TIME 2500
-#define MAX_FREE_TIME 6000
+#define MAX_FREE_TIME 10000
 #define RANGE_X_INTERVAL 7000
-#define RANGE_Y_INTERVAL 1000
+#define RANGE_Y_INTERVAL 500
 #define RANGE_DUR_TIME 2000
 
 float getUniformRand() {
   return (rand() % RAND_MAX + .0) / RAND_MAX;
 }
 
-int lock_random_movement = 0;
+int is_random_movement = 0;
 int is_following = 1;
 unsigned long last_time = 0, delta_time = 0;
-
-void randomMovements() {
-  if (is_following) {
-    lock_random_movement = 0;
-    return;
-  }
-  SerialUSB.println(millis());
-  if (!lock_random_movement) {
-    last_time = millis();
-    delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
-    SerialUSB.println(last_time);
-    SerialUSB.println(delta_time);
-  } else {
-    if (millis() - last_time > delta_time) {
-      x += (getUniformRand() - getUniformRand()) * RANGE_X_INTERVAL;
-      y += (getUniformRand() - getUniformRand()) * RANGE_Y_INTERVAL;
-      SerialUSB.println("RANDOM MOVE!");
-    } else { 
-      randomMovements();
-      return;
-    }
-  }
-  lock_random_movement ^= 1;
-  randomMovements();
-}
 
 void usbInterrupt(byte* buffer, byte nCount){
   SerialUSB.print("nCount =");
@@ -134,31 +115,27 @@ void usbInterrupt(byte* buffer, byte nCount){
   for(unsigned int i=0; i < nCount;i++)  
     SerialUSB.print((char)buffer[i]);
   SerialUSB.println("");
+  is_following = 1;
+  is_random_movement = 0;
   if ((char)buffer[0] == '1') {
     x = -(rand()%6700);
     y = +(rand()%3300);
-    is_following = 1;
   } else
   if ((char)buffer[0] == '2') {
     x = +(rand()%6700);
     y = +(rand()%3300);
-    is_following = 1;
   } else
   if ((char)buffer[0] == '3') {
     x = +(rand()%6700);
     y = -(rand()%3300);
-    is_following = 1;
   } else
   if ((char)buffer[0] == '4') {
     x = -(rand()%6700);
     y = -(rand()%3300);
-    is_following = 1;
   } else
   if ((char)buffer[0] == 'f') {
     is_following = 0;
-    randomMovements();
   } else {
-    is_following = 1;
     x = 0;
     y = 0;
   }
@@ -195,7 +172,12 @@ void gauss(float a[][4], float res[]) {
       res[i + 1] = a[where[i]][m] / a[where[i]][i];
 }
 
-
+// Box-Muller pseudo-random number generation
+// of normal distribution
+float getNormalRand(float mean, float deviation) {
+  float u1 = getUniformRand(), u2 = getUniformRand();
+  return mean + deviation * sqrt(-2*log(u1))*cos(2*PI*u2);
+}
 
 void loop() {  
     
@@ -209,10 +191,35 @@ void loop() {
     if (is_following)
       moveHead();
     else {
-      if (lock_random_movement) {
-        
+      if (is_random_movement) {
+         if (millis() - last_time > delta_time) {
+           float step_x, step_y;
+           do {
+             step_x = getNormalRand(0, RANGE_X_INTERVAL);
+             step_y = getNormalRand(0, RANGE_Y_INTERVAL);
+             if (x + step_x >= LEFT_BOUNDARY && x + step_x <= RIGHT_BOUNDARY 
+                 && y + step_y >= BOTTOM_BOUNDARY && y + step_y <= TOP_BOUNDARY) {
+                    break;
+                 }
+            SerialUSB.println("DAMN");
+            SerialUSB.println(x + step_x);
+            SerialUSB.println(y + step_y);
+           } while (1);
+            x += step_x;
+            y += step_y;
+            SerialUSB.println("RANDOM MOVE!");
+            SerialUSB.println(x);
+            SerialUSB.println(y);
+            SerialUSB.println("------------");
+            is_random_movement = 0;
+            moveHead();
+         }
       } else {
-      
+        last_time = millis();
+        delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
+        SerialUSB.println(last_time);
+        SerialUSB.println(delta_time);
+        is_random_movement = 1;
       }
     }
 }
