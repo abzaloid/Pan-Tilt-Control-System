@@ -38,7 +38,10 @@ int is_move = 1;
 
 // randomly generated time between [MIN_TIME, MAX_TIME] to change position      
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
-   if (is_move == 1) {
+   
+      /* Check if it is allowed to move */
+      if (!is_move)
+        return;
       
       /* minimum jerk computation */
       float t_2 = t * t;
@@ -87,7 +90,7 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
     }
       last_x = x;
       last_y = y;
-   }
+   
 }
 
 #define LEFT_BOUNDARY -6000
@@ -181,6 +184,7 @@ float getNormalRand(float mean, float deviation) {
 
 void loop() {  
     
+    /* TODO: ADD SOMEWHERE is_move locker */
     
     toggleLED();
   
