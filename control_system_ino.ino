@@ -100,19 +100,9 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    
 }
 
-#define LEFT_BOUNDARY -6000
-#define RIGHT_BOUNDARY 6000
-#define TOP_BOUNDARY 1500
-#define BOTTOM_BOUNDARY -3500
-
-#define MIN_FREE_TIME 2500
-#define MAX_FREE_TIME 8000
-#define RANGE_X_INTERVAL 7000
-#define RANGE_Y_INTERVAL 500
-#define RANGE_DUR_TIME 2000
 
 float getUniformRand() {
-  return (rand() % RAND_MAX + .0) / RAND_MAX;
+  return (rand() + .0) / RAND_MAX;
 }
 
 int is_random_movement = 0;
@@ -204,28 +194,29 @@ void loop() {
     else {
       if (is_random_movement) {
          if (millis() - last_time > delta_time) {
-           float step_x, step_y;
+           float new_x, new_y;
            do {
-             step_x = getNormalRand(0, RANGE_X_INTERVAL);
-             step_y = getNormalRand(0, RANGE_Y_INTERVAL);
-             if (x + step_x >= LEFT_BOUNDARY && x + step_x <= RIGHT_BOUNDARY 
-                 && y + step_y >= BOTTOM_BOUNDARY && y + step_y <= TOP_BOUNDARY) {
-                   // for some reason doesn't work!
-                   //break;
-                 }
-              float angle_TOP = (y + step_y) * FV_Y / HEIGHT;
-              float angle_BOTTOM = (x + step_x) * FV_X / WIDTH;
+             new_x = getNormalRand(X_MEAN, X_DEVIATION);
+             new_y = getNormalRand(Y_MEAN, Y_DEVIATION);  
+             
+//             if (new_x >= LEFT_BOUNDARY && new_x <= RIGHT_BOUNDARY 
+//                 && new_y >= BOTTOM_BOUNDARY && new_y <= TOP_BOUNDARY) {
+//                   // for some reason doesn't work!
+//                   //break;
+//                 }
+              float angle_TOP = new_y * FV_Y / HEIGHT;
+              float angle_BOTTOM = new_x * FV_X / WIDTH;
               int pos_BOTTOM = convert(angle_BOTTOM);
               int pos_TOP = convert(angle_TOP);
               if (abs(pos_BOTTOM - 2048) < 512 && abs(pos_TOP - 2048) < 512)
                 break;              
                  
               SerialUSB.println("-----------DAMN------------");
-              SerialUSB.println(x + step_x);
-              SerialUSB.println(y + step_y);
+              SerialUSB.println(new_x);
+              SerialUSB.println(new_y);
            } while (1);
-            x += step_x;
-            y += step_y;
+            x = new_x;
+            y = new_y;
             SerialUSB.println("RANDOM MOVE!");
             SerialUSB.println(x);
             SerialUSB.println(y);
@@ -242,6 +233,3 @@ void loop() {
       }
     }
 }
-
-
-
