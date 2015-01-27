@@ -26,8 +26,8 @@
 #define BOTTOM 1
 
 /* minimum jerk time in ms */
-#define MAX_TIME 1000  // maximum time to change position  
-#define MIN_TIME 50    // minimum time to change position
+#define MAX_TIME 3000  // maximum time to change position  
+#define MIN_TIME 1500    // minimum time to change position
 #define SAMPLE_TIME 10 // sample time to quantize the distance 
 
 /* Random movement */
