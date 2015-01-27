@@ -7,6 +7,24 @@ Dynamixel Dxl(DXL_BUS_SERIAL1);
 
 unsigned long time;
 
+int is_sleeping = 0;
+
+void goSleep() {
+  is_sleeping = 1;
+  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 50); 
+  delay(3000);
+  Dxl.writeWord(ID_TOP, GOAL_POSITION, 2000 + 2048); 
+  delay(1000);
+}
+
+void getUp() {
+  is_sleeping = 0;
+  Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
+  delay(1000);
+  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
+  delay(3000);
+}
+
 void setup() {
 
   SerialUSB.attachInterrupt(usbInterrupt);
@@ -16,7 +34,13 @@ void setup() {
   /* jointMode() is to use position mode */
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
-  
+  Dxl.goalTorque(ID_TOP, 2000);
+  Dxl.goalTorque(ID_BOTTOM, 2000);
+//  while(1){
+//    SerialUSB.println("--------------");
+//    SerialUSB.println(Dxl.readByte(ID_TOP, 36)); // 225
+//    SerialUSB.println(Dxl.readByte(ID_BOTTOM, 36));  // 250
+//  }
   Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
   delay(1000);
   Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
@@ -39,6 +63,9 @@ int is_move = 1;
 // randomly generated time between [MIN_TIME, MAX_TIME] to change position      
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    
+      if (is_sleeping)
+        return;
+  
       /* Check if it is allowed to move */
       if (!is_move)
         return;
@@ -67,6 +94,7 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
       
       /* modeling motion using x_a(t) and y_a(t) position profiles */
       for (float tm = 0.0; tm <= t; tm += SAMPLE_TIME) {
+      
         float x_t = x_a[0], y_t = y_a[0];
         float tt = tm*tm*tm;
         for (int i = 3; i <= 5; i++)
@@ -77,6 +105,14 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         int pos_BOTTOM = convert(angle_BOTTOM);
         int pos_TOP = convert(angle_TOP);
     
+        /* check if the head doesn't move much distant from the origin */
+        if (abs(pos_BOTTOM - ORIGIN_POS) > MAX_POS || abs(pos_TOP - ORIGIN_POS) > MAX_POS) {
+          /* TODO */
+          //is_move = 0;
+          break;
+        }
+        if (is_sleeping)
+          return;
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
         
@@ -93,19 +129,9 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    
 }
 
-#define LEFT_BOUNDARY -6000
-#define RIGHT_BOUNDARY 6000
-#define TOP_BOUNDARY 1500
-#define BOTTOM_BOUNDARY -3500
-
-#define MIN_FREE_TIME 2500
-#define MAX_FREE_TIME 8000
-#define RANGE_X_INTERVAL 7000
-#define RANGE_Y_INTERVAL 500
-#define RANGE_DUR_TIME 2000
 
 float getUniformRand() {
-  return (rand() % RAND_MAX + .0) / RAND_MAX;
+  return (rand() + .0) / RAND_MAX;
 }
 
 int is_random_movement = 0;
@@ -137,8 +163,16 @@ void usbInterrupt(byte* buffer, byte nCount){
     y = -(rand()%3300);
   } else
   if ((char)buffer[0] == 'f') {
-    is_following = 0;
-  } else {
+    is_following = 0;  // random movement
+  } else 
+  if ((char)buffer[0] == 's') {
+    getUp();      // go to origin  
+    goSleep();    // sleep mode
+  } else 
+  if ((char)buffer[0] == 'g') {
+    getUp();    // get up mode
+  } else
+  {
     x = 0;
     y = 0;
   }
@@ -188,41 +222,39 @@ void loop() {
     
     toggleLED();
   
-    if (abs(x * 2) >= WIDTH || abs(y * 2) >= HEIGHT) {
-     // is_move = 0;
-    }
+    if (is_sleeping)
+      return;
   
     if (is_following)
       moveHead();
     else {
       if (is_random_movement) {
          if (millis() - last_time > delta_time) {
-           float step_x, step_y;
+           float new_x, new_y;
            do {
-             step_x = getNormalRand(0, RANGE_X_INTERVAL);
-             step_y = getNormalRand(0, RANGE_Y_INTERVAL);
-             if (x + step_x >= LEFT_BOUNDARY && x + step_x <= RIGHT_BOUNDARY 
-                 && y + step_y >= BOTTOM_BOUNDARY && y + step_y <= TOP_BOUNDARY) {
-                   // for some reason doesn't work!
-                   //break;
-                 }
-              float angle_TOP = (y + step_y) * FV_Y / HEIGHT;
-              float angle_BOTTOM = (x + step_x) * FV_X / WIDTH;
-              int pos_BOTTOM = convert(angle_BOTTOM);
-              int pos_TOP = convert(angle_TOP);
-              if (abs(pos_BOTTOM - 2048) < 512 && abs(pos_TOP - 2048) < 512)
-                break;              
+             new_x = getNormalRand(X_MEAN, X_DEVIATION);
+             new_y = getNormalRand(Y_MEAN, Y_DEVIATION);  
+             
+             float angle_TOP = new_y * FV_Y / HEIGHT;
+             float angle_BOTTOM = new_x * FV_X / WIDTH;
+             int pos_BOTTOM = convert(angle_BOTTOM);
+             int pos_TOP = convert(angle_TOP);
+             if (abs(pos_BOTTOM - 2048) < 512 && abs(pos_TOP - 2048) < 512)
+               break;              
                  
-              SerialUSB.println("-----------DAMN------------");
-              SerialUSB.println(x + step_x);
-              SerialUSB.println(y + step_y);
+             SerialUSB.println("-----------DAMN------------");
+             SerialUSB.println(new_x);
+             SerialUSB.println(new_y);
            } while (1);
-            x += step_x;
-            y += step_y;
+
+            x = new_x;
+            y = new_y;
+
             SerialUSB.println("RANDOM MOVE!");
             SerialUSB.println(x);
             SerialUSB.println(y);
             SerialUSB.println("------------");
+
             is_random_movement = 0;
             moveHead();
          }
@@ -235,6 +267,3 @@ void loop() {
       }
     }
 }
-
-
-
