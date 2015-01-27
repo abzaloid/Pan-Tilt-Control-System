@@ -77,6 +77,13 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         int pos_BOTTOM = convert(angle_BOTTOM);
         int pos_TOP = convert(angle_TOP);
     
+        /* check if the head doesn't move much distant from the origin */
+        if (abs(pos_BOTTOM - 2048) > 512 || abs(pos_TOP - 2048) > 512) {
+          /* TODO */
+          //is_move = 0;
+          break;
+        }
+    
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
         
