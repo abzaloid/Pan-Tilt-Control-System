@@ -12,7 +12,7 @@ int is_sleeping = 0;
 void goSleep() {
   is_sleeping = 1;
   Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 50); 
-  delay(3000);
+  delay(1000);
   Dxl.writeWord(ID_TOP, GOAL_POSITION, 2000 + 2048); 
   delay(1000);
 }
@@ -22,7 +22,7 @@ void getUp() {
   Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
   delay(1000);
   Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
-  delay(3000);
+  delay(1000);
 }
 
 void setup() {
@@ -31,27 +31,17 @@ void setup() {
   pinMode(BOARD_LED_PIN, OUTPUT);  //toggleLED_Pin_Out
   // Dynamixel 2.0 Baudrate -> 0: 9600, 1: 57600, 2: 115200, 3: 1Mbps 
   Dxl.begin(3);
-  /* jointMode() is to use position mode */
+  
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
   Dxl.maxTorque(ID_TOP, 500);
   Dxl.maxTorque(ID_BOTTOM, 500);
-
   Dxl.writeWord(ID_TOP, 32, 120);
   Dxl.writeWord(ID_BOTTOM, 32, 120);
-
-  //Dxl.goalTorque(ID_TOP, 800);
-  //Dxl.goalTorque(ID_BOTTOM, 800);
-
-//  while(1){
-//    SerialUSB.println("--------------");
-//    SerialUSB.println(Dxl.readByte(ID_TOP, 36)); // 225
-//    SerialUSB.println(Dxl.readByte(ID_BOTTOM, 36));  // 250
-//  }
   Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
   delay(1000);
   Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
-  delay(3000);
+  delay(1000);
   
 }
 /* convert computed angle to motor position */
@@ -118,7 +108,6 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         int pos_TOP = convert(angle_TOP);
         /* check if the head doesn't move much distant from the origin */
         if (abs(pos_BOTTOM - ORIGIN_POS) > MAX_POS || abs(pos_TOP - ORIGIN_POS) > MAX_POS) {
-          /* TODO */
           is_move = 0;
           SerialUSB.println("OUT OF RANGE");
           SerialUSB.println(pos_BOTTOM);
@@ -131,20 +120,15 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         }
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
-         last_x = x_t;
-         last_y = y_t;
-
-       // SerialUSB.println(pos_TOP);
-      //  SerialUSB.println(pos_BOTTOM);
         
+        last_x = x_t;
+        last_y = y_t;
+       
         Dxl.flushPacket();
         if(!Dxl.getResult()){
           SerialUSB.println("Comm Fail");
         }  
     }
-//      last_x = x;
-//      last_y = y;
-   
 }
 
 
@@ -236,8 +220,6 @@ float getNormalRand(float mean, float deviation) {
 
 void loop() {  
     
-    /* TODO: ADD SOMEWHERE is_move locker */
-    
     toggleLED();
   
     if (is_sleeping)
@@ -269,11 +251,6 @@ void loop() {
             x = new_x;
             y = new_y;
 
-//            SerialUSB.println("RANDOM MOVE!");
-//            SerialUSB.println(x);
-//            SerialUSB.println(y);
-//            SerialUSB.println("------------");
-
             is_random_movement = 0;
             is_move = 1;
             moveHead();
@@ -281,8 +258,6 @@ void loop() {
       } else {
         last_time = millis();
         delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
-//        SerialUSB.println(last_time);
-//        SerialUSB.println(delta_time);
         is_random_movement = 1;
       }
     }
