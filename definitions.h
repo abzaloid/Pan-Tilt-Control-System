@@ -25,3 +25,15 @@
 #define MAX_TIME 1000  // maximum time to change position  
 #define MIN_TIME 50    // minimum time to change position
 #define SAMPLE_TIME 10 // sample time to quantize the distance 
+
+
+
+/* Random movement */
+// Coordinates of the head
+#define X_DEVIATION 6000
+#define X_MEAN 0
+#define Y_DEVIATION 700
+#define Y_MEAN -1500
+// Time to look at and wait for the next movement
+#define MIN_FREE_TIME 2500
+#define MAX_FREE_TIME 8000
