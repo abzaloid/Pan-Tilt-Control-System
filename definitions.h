@@ -26,8 +26,8 @@
 #define BOTTOM 1
 
 /* minimum jerk time in ms */
-#define MAX_TIME 3000  // maximum time to change position  
-#define MIN_TIME 1500    // minimum time to change position
+#define MAX_TIME 2400  // maximum time to change position  
+#define MIN_TIME 800    // minimum time to change position
 #define SAMPLE_TIME 10 // sample time to quantize the distance 
 
 /* Random movement */
@@ -43,5 +43,8 @@
 /* Limitations of motor positions */
 #define ORIGIN_POS 2048
 #define MAX_POS 512
+
+#define THRESHOLD_LENGTH 50
+
 
 #endif
