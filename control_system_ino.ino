@@ -34,8 +34,10 @@ void setup() {
   /* jointMode() is to use position mode */
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
-  Dxl.goalTorque(ID_TOP, 2000);
-  Dxl.goalTorque(ID_BOTTOM, 2000);
+  Dxl.maxTorque(ID_TOP, 1023);
+  Dxl.maxTorque(ID_BOTTOM, 1023);
+  Dxl.goalTorque(ID_TOP, 800);
+  Dxl.goalTorque(ID_BOTTOM, 800);
 //  while(1){
 //    SerialUSB.println("--------------");
 //    SerialUSB.println(Dxl.readByte(ID_TOP, 36)); // 225
