@@ -57,6 +57,12 @@ float last_x = 0, last_y = 0; // the previous position
 /* Locker for motors */
 int is_move = 1;
 
+/* State of random movement of a head 
+   When it is on the ORIGIN it waits longer
+   with respect to when it is on SIDE
+*/
+int random_state = ORIGIN;
+
 // randomly generated time between [MIN_TIME, MAX_TIME] to change position      
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    
@@ -167,6 +173,7 @@ void usbInterrupt(byte* buffer, byte nCount){
   } else
   if ((char)buffer[0] == 'f') {
     is_following = 0;  // random movement
+    random_state = ORIGIN;
   } else 
   if ((char)buffer[0] == 's') {
     getUp();      // go to origin  
@@ -258,6 +265,20 @@ void loop() {
       } else {
         last_time = millis();
         delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
+        
+        /* It should wait shorter time when
+           it is looking around */
+        if (random_state == SIDE) {
+          delta_time /= 10;
+        }
+        
+        /* Smoothly go to the origin */
+        x = 0, y = 0;
+        moveHead();
+        
+        /* Switch random state*/
+        random_state ^= 1;
+
         is_random_movement = 1;
       }
     }
