@@ -9,6 +9,8 @@ unsigned long time;
 
 int is_sleeping = 0;
 
+
+
 void goSleep() {
   is_sleeping = 1;
   Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 50); 
@@ -34,14 +36,12 @@ void setup() {
   
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
-  Dxl.maxTorque(ID_TOP, 500);
-  Dxl.maxTorque(ID_BOTTOM, 500);
-  Dxl.writeWord(ID_TOP, 32, 120);
-  Dxl.writeWord(ID_BOTTOM, 32, 120);
-  Dxl.writeWord(ID_TOP, GOAL_POSITION, 2048); 
-  delay(1000);
-  Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, 2048); 
-  delay(1000);
+  Dxl.maxTorque(ID_TOP, 512);
+  Dxl.maxTorque(ID_BOTTOM, 512);
+  // speed
+  Dxl.writeWord(ID_TOP, 32, 100);
+  Dxl.writeWord(ID_BOTTOM, 32, 100);
+  getUp();
   
 }
 /* convert computed angle to motor position */
@@ -50,6 +50,7 @@ int convert(float angle) {
   return pos;  
 }
 
+int is_following = 1;
 /* Coordinates of the center of a face */
 float x = 0, y = 0;
 float last_x = 0, last_y = 0; // the previous position
@@ -57,20 +58,35 @@ float last_x = 0, last_y = 0; // the previous position
 /* Locker for motors */
 int is_move = 1;
 
-// randomly generated time between [MIN_TIME, MAX_TIME] to change position      
+/* State of random movement of a head 
+   When it is on the ORIGIN it waits longer
+   with respect to when it is on SIDE
+*/
+int random_state = ORIGIN;
+
+
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
    
-      if (is_sleeping)
-        return;
+//      if (is_sleeping)
+//        return;
   
       /* Check if it is allowed to move */
-      if (!is_move)
-        return;
-      
+//      if (!is_move)
+//        return;
+//      
       /* if length is too small --> DO NOT MOVE */
-      if ((x-last_x)*(x-last_x)+(y-last_y)*(y-last_y)<=THRESHOLD_LENGTH*THRESHOLD_LENGTH) {
-        return;
-      }
+//      if ((x-last_x)*(x-last_x)+(y-last_y)*(y-last_y)<=THRESHOLD_LENGTH*THRESHOLD_LENGTH) {
+//        return;
+//      }
+      
+      
+//        SerialUSB.println("#####GOTO#####");
+//              SerialUSB.println(x);
+//              SerialUSB.println(y);
+//      
+//        SerialUSB.println("#####LAST#####");
+//        SerialUSB.println(last_x);
+//        SerialUSB.println(last_y);
       
       /* minimum jerk computation */
       float t_2 = t * t;
@@ -93,7 +109,6 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
       gauss(ax, x_a);  // x_a(t) is 5th degree polynomial position profile
       gauss(ay, y_a);  // x_a(t) is 5th degree polynomial position profile
       
-      
       /* modeling motion using x_a(t) and y_a(t) position profiles */
       for (float tm = 0.0; tm <= t; tm += SAMPLE_TIME) {
       
@@ -108,27 +123,26 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
         int pos_TOP = convert(angle_TOP);
         /* check if the head doesn't move much distant from the origin */
         if (abs(pos_BOTTOM - ORIGIN_POS) > MAX_POS || abs(pos_TOP - ORIGIN_POS) > MAX_POS) {
-          is_move = 0;
-          SerialUSB.println("OUT OF RANGE");
-          SerialUSB.println(pos_BOTTOM);
-          SerialUSB.println(pos_TOP);
-          break;
+         // is_move = 0;
+         // break;
         }
         if (is_sleeping) {
-          SerialUSB.println("Sleeping");
-          break;
+         // SerialUSB.println("Sleeping");
+        //  break;
         }
+       
+          
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
         
-        last_x = x_t;
-        last_y = y_t;
        
         Dxl.flushPacket();
         if(!Dxl.getResult()){
           SerialUSB.println("Comm Fail");
         }  
     }
+    last_x = x;
+    last_y = y;
 }
 
 
@@ -137,7 +151,6 @@ float getUniformRand() {
 }
 
 int is_random_movement = 0;
-int is_following = 1;
 unsigned long last_time = 0, delta_time = 0;
 
 void usbInterrupt(byte* buffer, byte nCount){
@@ -167,6 +180,7 @@ void usbInterrupt(byte* buffer, byte nCount){
   } else
   if ((char)buffer[0] == 'f') {
     is_following = 0;  // random movement
+    random_state = SIDE;
   } else 
   if ((char)buffer[0] == 's') {
     getUp();      // go to origin  
@@ -213,9 +227,12 @@ void gauss(float a[][4], float res[]) {
 
 // Box-Muller pseudo-random number generation
 // of normal distribution
-float getNormalRand(float mean, float deviation) {
+float getNormalRand(float mean, float deviation, float inverse = 0) {
   float u1 = getUniformRand(), u2 = getUniformRand();
-  return mean + deviation * sqrt(-2*log(u1))*cos(2*PI*u2);
+  float probability = sqrt(-2*log(u1))*cos(2*PI*u2);
+  if (inverse)
+    probability = 1 - probability;
+  return mean + deviation * probability;
 }
 
 void loop() {  
@@ -225,40 +242,57 @@ void loop() {
     if (is_sleeping)
       return;
   
-    if (is_following)
+    
       moveHead();
-    else {
+    
       if (is_random_movement) {
          if (millis() - last_time > delta_time) {
-           float new_x, new_y;
-           do {
-             new_x = getNormalRand(X_MEAN, X_DEVIATION);
-             new_y = getNormalRand(Y_MEAN, Y_DEVIATION);  
+           
+           if (random_state == ORIGIN) {
+               /* Smoothly go to the origin */
+              x = 0, y = 0;
+              SerialUSB.println("GO TO ORIGIN");
+         } else {
              
-             float angle_TOP = new_y * FV_Y / HEIGHT;
-             float angle_BOTTOM = new_x * FV_X / WIDTH;
-             int pos_BOTTOM = convert(angle_BOTTOM);
-             int pos_TOP = convert(angle_TOP);
+             float new_x, new_y;
+             do {
+               new_x = X_DEVIATION * getUniformRand() * (rand()%2==0?1:-1);
+               new_y = getNormalRand(Y_MEAN, Y_DEVIATION);  
+               
+               float angle_TOP = new_y * FV_Y / HEIGHT;
+               float angle_BOTTOM = new_x * FV_X / WIDTH;
+               int pos_BOTTOM = convert(angle_BOTTOM);
+               int pos_TOP = convert(angle_TOP);
+               
+               if (abs(pos_BOTTOM - ORIGIN_POS) < MAX_POS && abs(pos_TOP - ORIGIN_POS) < MAX_POS)
+                 break;              
+                   
+//               SerialUSB.println("-----------DAMN------------");
+//               SerialUSB.println(new_x);
+//               SerialUSB.println(new_y);
+             } while (1);
+  
+              x = new_x;
+              y = new_y;
              
-             if (abs(pos_BOTTOM - ORIGIN_POS) < MAX_POS && abs(pos_TOP - ORIGIN_POS) < MAX_POS)
-               break;              
-                 
-             SerialUSB.println("-----------DAMN------------");
-             SerialUSB.println(new_x);
-             SerialUSB.println(new_y);
-           } while (1);
-
-            x = new_x;
-            y = new_y;
-
-            is_random_movement = 0;
-            is_move = 1;
-            moveHead();
+//              SerialUSB.println(new_x);
+//              SerialUSB.println(new_y);
+//              SerialUSB.println("----------");
          }
-      } else {
+            is_random_movement = 0;
+            moveHead();
+            
+         }
+      } else if (!is_following) {
         last_time = millis();
         delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
+        
+       
+         random_state ^= 1;
+        if (random_state == ORIGIN)
+          delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_AROUND_TIME - MIN_FREE_AROUND_TIME) + MIN_FREE_AROUND_TIME);
+ 
         is_random_movement = 1;
       }
-    }
+    
 }
