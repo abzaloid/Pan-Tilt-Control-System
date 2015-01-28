@@ -34,17 +34,26 @@
 // Coordinates of the head
 #define X_DEVIATION 6000
 #define X_MEAN 0
-#define Y_DEVIATION 200
-#define Y_MEAN -1300
+#define Y_DEVIATION 10
+#define Y_MEAN -1200
 // Time to look at and wait for the next movement
 #define MIN_FREE_TIME 2500
-#define MAX_FREE_TIME 8000
+#define MAX_FREE_TIME 20000
+// Time to look at and wait for the next movement
+#define MIN_FREE_AROUND_TIME 800
+#define MAX_FREE_AROUND_TIME 2000
+// The state of random position
+#define ORIGIN 0
+#define SIDE 1
+
 
 /* Limitations of motor positions */
 #define ORIGIN_POS 2048
 #define MAX_POS 512
 
 #define THRESHOLD_LENGTH 50
+
+
 
 
 #endif
