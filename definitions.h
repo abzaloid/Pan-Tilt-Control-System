@@ -1,6 +1,9 @@
 #ifndef __DEFINITIONS__
 #define __DEFINITIONS__
 
+#define WRITES_X 1
+#define WRITES_Y 2
+#define GOT_XY 3
 
 /* Serial device defines for dxl bus */
 #define DXL_BUS_SERIAL1 1  //Dynamixel on Serial1(USART1)  <-OpenCM9.04
@@ -14,12 +17,12 @@
 #define MOVING 46
 
 /* Field of View of Camera's X and Y axes in degrees */
-#define FV_X 45.0
-#define FV_Y 45.0
+#define FV_X 160.0
+#define FV_Y 160.0
 
 /* Parameters of camera */
-#define WIDTH  1280.0
-#define HEIGHT 800.0
+#define WIDTH  640.0
+#define HEIGHT 480.0
 
 /* ID's for semantic & easy use */
 #define TOP 0
