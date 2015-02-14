@@ -1,15 +1,12 @@
 #include "definitions.h"
 #include <stdlib.h>
 #include <math.h>
-
 /* Dynamixel Initialization */
 Dynamixel Dxl(DXL_BUS_SERIAL1);
 
 unsigned long time;
 
 int is_sleeping = 0;
-
-
 
 void goSleep() {
   is_sleeping = 1;
@@ -29,9 +26,8 @@ void getUp() {
 
 void setup() {
 
-  SerialUSB.attachInterrupt(usbInterrupt);
+  Serial2.begin(57600);
   pinMode(BOARD_LED_PIN, OUTPUT);  //toggleLED_Pin_Out
-  // Dynamixel 2.0 Baudrate -> 0: 9600, 1: 57600, 2: 115200, 3: 1Mbps 
   Dxl.begin(3);
   
   Dxl.jointMode(ID_TOP); 
@@ -58,37 +54,13 @@ float last_x = 0, last_y = 0; // the previous position
 /* Locker for motors */
 int is_move = 1;
 
-/* State of random movement of a head 
-   When it is on the ORIGIN it waits longer
-   with respect to when it is on SIDE
-*/
 int random_state = ORIGIN;
 
-
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
-   
-//      if (is_sleeping)
-//        return;
   
-      /* Check if it is allowed to move */
-//      if (!is_move)
-//        return;
-//      
-      /* if length is too small --> DO NOT MOVE */
-//      if ((x-last_x)*(x-last_x)+(y-last_y)*(y-last_y)<=THRESHOLD_LENGTH*THRESHOLD_LENGTH) {
-//        return;
-//      }
-      
-      
-//        SerialUSB.println("#####GOTO#####");
-//              SerialUSB.println(x);
-//              SerialUSB.println(y);
-//      
-//        SerialUSB.println("#####LAST#####");
-//        SerialUSB.println(last_x);
-//        SerialUSB.println(last_y);
-      
-      /* minimum jerk computation */
+      if (!(x==0&&y==0) && (last_x - x) * (last_x - x) + (last_y - y) * (last_y - y) <= THRESHOLD_LENGTH * THRESHOLD_LENGTH)
+        return;
+      SerialUSB.println("moving");
       float t_2 = t * t;
       float t_3 = t_2 * t;
       float t_4 = t_3 * t;
@@ -113,7 +85,7 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
       for (float tm = 0.0; tm <= t; tm += SAMPLE_TIME) {
       
         float x_t = x_a[0], y_t = y_a[0];
-        float tt = tm*tm*tm;
+        float tt = tm * tm * tm;
         for (int i = 3; i <= 5; i++)
           x_t += x_a[i - 2] * tt, y_t += y_a[i - 2] * tt, tt *= tm;
         float angle_TOP = y_t * FV_Y / HEIGHT;
@@ -121,20 +93,9 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
     
         int pos_BOTTOM = convert(angle_BOTTOM);
         int pos_TOP = convert(angle_TOP);
-        /* check if the head doesn't move much distant from the origin */
-        if (abs(pos_BOTTOM - ORIGIN_POS) > MAX_POS || abs(pos_TOP - ORIGIN_POS) > MAX_POS) {
-         // is_move = 0;
-         // break;
-        }
-        if (is_sleeping) {
-         // SerialUSB.println("Sleeping");
-        //  break;
-        }
-       
-          
+      
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
-        
        
         Dxl.flushPacket();
         if(!Dxl.getResult()){
@@ -145,56 +106,55 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
     last_y = y;
 }
 
-
-float getUniformRand() {
-  return (rand() + .0) / RAND_MAX;
-}
-
 int is_random_movement = 0;
 unsigned long last_time = 0, delta_time = 0;
 
-void usbInterrupt(byte* buffer, byte nCount){
-  SerialUSB.print("nCount =");
-  SerialUSB.println(nCount);
-  for(unsigned int i=0; i < nCount;i++)  
-    SerialUSB.print((char)buffer[i]);
-  SerialUSB.println("");
-  is_following = 1;
-  is_random_movement = 0;
-  is_move = 1;
-  if ((char)buffer[0] == '1') {
-    x = -(rand()%6000);
-    y = +(rand()%1500);
-  } else
-  if ((char)buffer[0] == '2') {
-    x = +(rand()%6000);
-    y = +(rand()%1500);
-  } else
-  if ((char)buffer[0] == '3') {
-    x = +(rand()%6000);
-    y = -(rand()%1500);
-  } else
-  if ((char)buffer[0] == '4') {
-    x = -(rand()%6000);
-    y = -(rand()%1500);
-  } else
-  if ((char)buffer[0] == 'f') {
-    is_following = 0;  // random movement
-    random_state = SIDE;
-  } else 
-  if ((char)buffer[0] == 's') {
-    getUp();      // go to origin  
-    goSleep();    // sleep mode
-  } else 
-  if ((char)buffer[0] == 'g') {
-    getUp();    // get up mode
-  } else {
-    x = 0;
-    y = 0;
-  }
+int writing_state = 0;
+
+void loop() {  
+   if(Serial2.available()){
+      toggleLED();
+      char ch = (char)Serial2.read();       
+      SerialUSB.print(ch);
+      if (ch == 'x') {
+        writing_state = WRITES_X;
+        x = 0;
+      } else
+      if (ch == 'y') {
+        writing_state = WRITES_Y;
+        y = 0;
+      } else
+      if (ch == '$') {
+        writing_state = GOT_XY;
+      } else
+      if (ch-'0'>=0&&ch-'0'<=9){
+        if (writing_state == WRITES_X) {
+           x = x * 10 + (ch - '0');           
+        }
+        else
+        if (writing_state == WRITES_Y) {
+           y = y * 10 + (ch - '0');
+        }
+      } else
+        writing_state = 0;
+    }
+    if (writing_state == GOT_XY){
+      x -= (WIDTH / 2);
+      y -= (HEIGHT / 2);
+      x *= -1;
+      y *= -1;
+      SerialUSB.println("");
+      SerialUSB.println("x = ");
+      SerialUSB.println(x);
+      SerialUSB.println("y = ");
+      SerialUSB.println(y);
+      moveHead(); 
+      writing_state = 0;
+    } 
 }
 
-/* Solution of system of equations for minimum jerk */
+
+
 #define EPS 1e-4
 void gauss(float a[][4], float res[]) {
   int n = 3;
@@ -223,76 +183,4 @@ void gauss(float a[][4], float res[]) {
   for (int i = 0; i < m; i++)
     if (where[i] != -1)
       res[i + 1] = a[where[i]][m] / a[where[i]][i];
-}
-
-// Box-Muller pseudo-random number generation
-// of normal distribution
-float getNormalRand(float mean, float deviation, float inverse = 0) {
-  float u1 = getUniformRand(), u2 = getUniformRand();
-  float probability = sqrt(-2*log(u1))*cos(2*PI*u2);
-  if (inverse)
-    probability = 1 - probability;
-  return mean + deviation * probability;
-}
-
-void loop() {  
-    
-    toggleLED();
-  
-    if (is_sleeping)
-      return;
-  
-    
-      moveHead();
-    
-      if (is_random_movement) {
-         if (millis() - last_time > delta_time) {
-           
-           if (random_state == ORIGIN) {
-               /* Smoothly go to the origin */
-              x = 0, y = 0;
-              SerialUSB.println("GO TO ORIGIN");
-         } else {
-             
-             float new_x, new_y;
-             do {
-               new_x = X_DEVIATION * getUniformRand() * (rand()%2==0?1:-1);
-               new_y = getNormalRand(Y_MEAN, Y_DEVIATION);  
-               
-               float angle_TOP = new_y * FV_Y / HEIGHT;
-               float angle_BOTTOM = new_x * FV_X / WIDTH;
-               int pos_BOTTOM = convert(angle_BOTTOM);
-               int pos_TOP = convert(angle_TOP);
-               
-               if (abs(pos_BOTTOM - ORIGIN_POS) < MAX_POS && abs(pos_TOP - ORIGIN_POS) < MAX_POS)
-                 break;              
-                   
-//               SerialUSB.println("-----------DAMN------------");
-//               SerialUSB.println(new_x);
-//               SerialUSB.println(new_y);
-             } while (1);
-  
-              x = new_x;
-              y = new_y;
-             
-//              SerialUSB.println(new_x);
-//              SerialUSB.println(new_y);
-//              SerialUSB.println("----------");
-         }
-            is_random_movement = 0;
-            moveHead();
-            
-         }
-      } else if (!is_following) {
-        last_time = millis();
-        delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_TIME - MIN_FREE_TIME) + MIN_FREE_TIME);
-        
-       
-         random_state ^= 1;
-        if (random_state == ORIGIN)
-          delta_time = (unsigned long) (getUniformRand() * (MAX_FREE_AROUND_TIME - MIN_FREE_AROUND_TIME) + MIN_FREE_AROUND_TIME);
- 
-        is_random_movement = 1;
-      }
-    
 }
