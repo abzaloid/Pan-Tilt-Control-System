@@ -144,12 +144,12 @@ void loop() {
       float ax[3][4] = {
         {t_3, t_4, t_5, x - x_a[0]},
         {3*t_2, 4*t_3, 5*t_4, 0.0},
-        {6*t, 8*t_2, 20*t_3, 0.0}
+        {6*t, 12*t_2, 20*t_3, 0.0}
       };
       float ay[3][4] = {
         {t_3, t_4, t_5, y - y_a[0]},
         {3*t_2, 4*t_3, 5*t_4, 0.0},
-        {6*t, 8*t_2, 20*t_3, 0.0}
+        {6*t, 12*t_2, 20*t_3, 0.0}
       };
       gauss(ax, x_a);  // x_a(t) is 5th degree polynomial position profile
       gauss(ay, y_a);  // x_a(t) is 5th degree polynomial position profile
