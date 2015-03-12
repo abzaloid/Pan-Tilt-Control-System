@@ -32,17 +32,17 @@ void setup() {
   
   Dxl.jointMode(ID_TOP); 
   Dxl.jointMode(ID_BOTTOM);
-  Dxl.maxTorque(ID_TOP, 512);
-  Dxl.maxTorque(ID_BOTTOM, 512);
+  Dxl.maxTorque(ID_TOP, 900);
+  Dxl.maxTorque(ID_BOTTOM, 900);
   // speed
-  Dxl.writeWord(ID_TOP, 32, 100);
-  Dxl.writeWord(ID_BOTTOM, 32, 100);
+  Dxl.writeWord(ID_TOP, 32, 80);
+  Dxl.writeWord(ID_BOTTOM, 32, 80);
   getUp();
   
 }
 /* convert computed angle to motor position */
 int convert(float angle) {
-  int pos = 2048 + round((angle / 360.0) * 1024);    
+  int pos = 2048 + round((angle / 180.0) * 1024);    
   return pos;  
 }
 
@@ -56,11 +56,47 @@ int is_move = 1;
 
 int random_state = ORIGIN;
 
+int moving_finished = 1;
+
+int cnt_detection = 0;
+    
+      int x_prev=2048, y_prev=2048;
 void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
   
-      if (!(x==0&&y==0) && (last_x - x) * (last_x - x) + (last_y - y) * (last_y - y) <= THRESHOLD_LENGTH * THRESHOLD_LENGTH)
-        return;
-      SerialUSB.println("moving");
+//    SerialUSB.println("----from:---");
+//  
+//    SerialUSB.println(last_x);
+//    SerialUSB.println(last_y);
+//  
+//    SerialUSB.println("----to:-----");
+//    SerialUSB.println(x);
+//    SerialUSB.println(y);
+  
+    float real_dist = sqrt((last_x - x) * (last_x - x) + (last_y - y) * (last_y - y));
+  
+    cnt_detection++;
+    if (cnt_detection > 45)
+      cnt_detection = 45;
+  
+//    if (cnt_detection > 40 && real_dist > THRESHOLD_LENGTH) {
+//      moving_finished = 1;
+//      return;
+//    }
+  
+    x = 0.9 * last_x + 0.1 * x;
+    y = 0.9 * last_y + 0.1 * y;
+  
+    moving_finished = 0;
+    float dist = sqrt((last_x - x) * (last_x - x) + (last_y - y) * (last_y - y));
+      if (!(last_x==0&&last_y==0) && dist <= MIN_THRESHOLD_LENGTH) {
+       moving_finished=1;
+       return;
+      }
+
+
+//      t /= abs(200-dist);
+
+      //SerialUSB.println("moving");
       float t_2 = t * t;
       float t_3 = t_2 * t;
       float t_4 = t_3 * t;
@@ -71,29 +107,46 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
       float ax[3][4] = {
         {t_3, t_4, t_5, x - x_a[0]},
         {3*t_2, 4*t_3, 5*t_4, 0.0},
-        {6*t, 8*t_2, 20*t_3, 0.0}
+        {6*t, 12*t_2, 20*t_3, 0.0}
       };
       float ay[3][4] = {
         {t_3, t_4, t_5, y - y_a[0]},
         {3*t_2, 4*t_3, 5*t_4, 0.0},
-        {6*t, 8*t_2, 20*t_3, 0.0}
+        {6*t, 12*t_2, 20*t_3, 0.0}
       };
       gauss(ax, x_a);  // x_a(t) is 5th degree polynomial position profile
       gauss(ay, y_a);  // x_a(t) is 5th degree polynomial position profile
       
+      
       /* modeling motion using x_a(t) and y_a(t) position profiles */
-      for (float tm = 0.0; tm <= t; tm += SAMPLE_TIME) {
+      for (float tm = 0.0, cnt=0; tm <= t; tm += SAMPLE_TIME, cnt++) {
       
         float x_t = x_a[0], y_t = y_a[0];
         float tt = tm * tm * tm;
         for (int i = 3; i <= 5; i++)
           x_t += x_a[i - 2] * tt, y_t += y_a[i - 2] * tt, tt *= tm;
+   
+    //SerialUSB.println(x_t);
+    //SerialUSB.println(y_t);
+    
+     
+    
         float angle_TOP = y_t * FV_Y / HEIGHT;
         float angle_BOTTOM = x_t * FV_X / WIDTH;
-    
+        
         int pos_BOTTOM = convert(angle_BOTTOM);
         int pos_TOP = convert(angle_TOP);
-      
+        
+        if (pos_TOP > 2150)
+          pos_TOP = 2150;
+    
+//       if ((pos_TOP - y_prev) * (y-last_y) < 0)
+//        continue;
+      if ((pos_BOTTOM - x_prev) * (last_x - x) > 0)
+        continue;
+    
+      y_prev=pos_TOP;
+      x_prev=pos_BOTTOM;
         Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
         Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
        
@@ -102,8 +155,21 @@ void moveHead(float t = MIN_TIME + rand() % int(MAX_TIME - MIN_TIME) + 0.0) {
           SerialUSB.println("Comm Fail");
         }  
     }
+//      float angle_TOP = y * FV_Y / HEIGHT;
+//        float angle_BOTTOM = x * FV_X / WIDTH;
+//        
+//        
+//        int pos_BOTTOM = convert(angle_BOTTOM);
+//        int pos_TOP = convert(angle_TOP);
+//        
+//        SerialUSB.println(pos_BOTTOM);
+//        
+//        Dxl.writeWord(ID_TOP, GOAL_POSITION, pos_TOP);    
+//        Dxl.writeWord(ID_BOTTOM, GOAL_POSITION, pos_BOTTOM);
+    moving_finished = 1;
     last_x = x;
     last_y = y;
+    
 }
 
 int is_random_movement = 0;
@@ -112,10 +178,9 @@ unsigned long last_time = 0, delta_time = 0;
 int writing_state = 0;
 
 void loop() { 
-   if(Serial2.available()){
+   if(Serial2.available() && moving_finished == 1){
       toggleLED();
       char ch = (char)Serial2.read();       
-      SerialUSB.print(ch);
       if (ch == 'x') {
         writing_state = WRITES_X;
         x = 0;
@@ -141,21 +206,22 @@ void loop() {
     if (writing_state == GOT_XY){
       x -= (WIDTH / 2);
       y -= (HEIGHT / 2);
-//      x *= -1;
-//      y *= -1;
-      SerialUSB.println("");
-      SerialUSB.println("x = ");
-      SerialUSB.println(x);
-      SerialUSB.println("y = ");
-      SerialUSB.println(y);
-      moveHead(); 
+      
+//  float temp = x;
+//  x = y;
+//  y = temp;
+      
+      x *= -1;
+      //y *= -1;
+     
+      moveHead();
       writing_state = 0;
     } 
 }
 
 
 
-#define EPS 1e-4
+#define EPS 0
 void gauss(float a[][4], float res[]) {
   int n = 3;
   int m = 3;

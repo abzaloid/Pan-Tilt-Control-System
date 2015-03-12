@@ -18,7 +18,7 @@
 
 /* Field of View of Camera's X and Y axes in degrees */
 #define FV_X 150.0
-#define FV_Y 100.0
+#define FV_Y 120.0
 
 /* Parameters of camera */
 #define WIDTH  640.0
@@ -29,9 +29,9 @@
 #define BOTTOM 1
 
 /* minimum jerk time in ms */
-#define MAX_TIME 2400  // maximum time to change position  
-#define MIN_TIME 800    // minimum time to change position
-#define SAMPLE_TIME 10 // sample time to quantize the distance 
+#define MAX_TIME 500  // maximum time to change position  
+#define MIN_TIME 300    // minimum time to change position
+#define SAMPLE_TIME 5 // sample time to quantize the distance 
 
 /* Random movement */
 // Coordinates of the head
@@ -54,7 +54,8 @@
 #define ORIGIN_POS 2048
 #define MAX_POS 512
 
-#define THRESHOLD_LENGTH 50
+#define THRESHOLD_LENGTH 200
+#define MIN_THRESHOLD_LENGTH 5
 
 
 
