@@ -1,0 +1,122 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+
+\title{pantilt}
+\author{abzal.serekov }
+\date{March 2015}
+
+\usepackage{natbib}
+\usepackage{graphicx}
+\usepackage{gensymb}
+\begin{document}
+
+\maketitle
+
+\section{Overview}
+For pan-tilt system two MX-28 motors, OpenCM 9.04 microcontroller and Bluetooth BT-210 were used.
+
+It works as follows:
+\begin{itemize}
+\item It receives face coordinates from Android tablet through Bluetooth BT-210;
+
+\begin{itemize}
+
+\item we convert these coordinates to the frame reference of motors taking into account Field Of View both horizontal ($x$) and vertical ($y$)
+
+\end{itemize}
+
+\item Low pass filters new coming data;
+\item Moves smoothly to the given position;
+\begin{itemize}
+\item Uses one motor for only x-axis motion, while another motor for only y-axis
+\end{itemize}
+\item Repeats previous routines.
+\end{itemize}
+
+
+\section{Coordinates conversion}
+
+Taking two input coordinates $c_x$ and $c_y$ coming from camera and taking into account 
+\[height = 480, \quad width = 640\]
+\[\text{Horizontal Field Of View}  \alpha =72^\circ{} , \text{Vertical Field Of View}  \beta = 72^\circ{}\]
+
+We derive the following formulas:
+
+\[ x := \displaystyle \frac{c_x \alpha}{width},\quad y := \displaystyle \frac{c_y \beta}{height} \]
+
+\section{Low pass filter}
+
+For low-pass filtering of new coming $(x, y)$ was achieved keeping the previous position of motors $(x_{last}, y_{last})$:
+\begin{itemize}
+\item $x := 0.1x  + 0.9x_{last}$
+\item $	y := 0.1y  + 0.9y_{last}$
+\end{itemize}
+	
+It is used to prevent noises very efficiently
+
+
+\section{Smooth motion}
+
+Good explanation:
+
+\begin{verbatim}
+http://shadmehrlab.org/book/minimum_jerk/minimumjerk.htm
+
+http://mplab.ucsd.edu/wordpress/tutorials/minimumJerk.pdf
+
+\end{verbatim}
+
+
+
+Our aim is to minimize the initial and final velocity together with acceleration, so that there will be no jerks in ideal case. Also, throughout the motion eveything should be smooth.
+
+Let's assume that we want to get from the initial position $x_0=0$ to the final position $x_f$ in time $T$
+
+Let assume that $x(t)=\displaystyle \sum_{i=0}^{6} p_it^i$.
+
+So, we want the following conditions:
+\begin{itemize}
+\item $x(0) = 0, \quad x(T)=x_f$
+\item $\dot{x}(0) = 0, \quad \dot{x}(T)=0$
+\item $\ddot{x}(0) = 0, \quad \ddot{x}(T)=0$
+\end{itemize}
+
+Solving the system of equations above we get:
+
+\[p_0 = p_1 = p_2 = 0\]
+
+\[
+\begin{bmatrix}
+    T^3    & T^4 & T^5  \\
+    3T^2  & 4T^3 & 5T^4  \\
+    6T   & 12T^2 & 20T^3 
+\end{bmatrix}
+\begin{bmatrix}
+p_3 \\
+p_4 \\
+p_5
+\end{bmatrix}
+=
+\begin{bmatrix}
+x_f \\
+0 \\
+0
+\end{bmatrix}
+\]
+
+So, solving the system of equations above using Gauss we get
+\[x(t) = p_3t^3 + p_4t^4 + t_5t^5\]
+
+As long as motors are in discrete mode, then we sample $x(t)$ with $t=[0..T]$ with $\triangle t = 5$ms
+
+\begin{figure}
+\includegraphics[scale=0.6]{minimu2.jpg}
+\label{fig:univerise}
+\end{figure}
+
+
+
+
+
+\end{document}
